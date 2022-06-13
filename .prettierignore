@@ -1,0 +1,7 @@
+# Common
+CHANGELOG.md
+coverage/
+pnpm-lock.yaml
+
+# Vite
+dist/

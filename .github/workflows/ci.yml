@@ -1,0 +1,61 @@
+name: 'ci'
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: snyk/actions/node@master
+        with:
+          args: --severity-threshold=high --fail-on=all
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: fossas/fossa-action@main
+        with:
+          api-key: ${{secrets.FOSSA_API_KEY}}
+      - uses: fossas/fossa-action@main
+        with:
+          api-key: ${{secrets.FOSSA_API_KEY}}
+          run-tests: true
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/setup
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Lint
+        run: pnpm run lint
+      - name: Test Coverage
+        run: pnpm run test:coverage
+
+  build:
+    if: ${{ github.event_name == 'push' && contains('refs/heads/main', github.ref) }}
+    needs:
+      - licenses
+      - security
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/setup
+      - name: Build
+        run: pnpm run build
+      - uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: apps/*/dist
+          if-no-files-found: error
+          retention-days: 1
